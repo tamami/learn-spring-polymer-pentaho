@@ -1,0 +1,217 @@
+<link rel="import" href="bower_components/polymer/polymer.html">
+<link rel="import" href="bower_components/paper-dialog/paper-dialog.html">
+<link rel="import" href="bower_components/paper-icon-button/paper-icon-button.html">
+<link rel="import" href="bower_components/iron-form/iron-form.html">
+<link rel="import" href="bower_components/iron-a11y-keys/iron-a11y-keys.html">
+<link rel="import" href="scripts/moment-js.html">
+<link rel="import" Href="pdf-ajax.html">
+
+
+<dom-module id="form-entry-sk-njop">
+    <template>
+        <style>
+            #dialog {
+                display: block;
+                padding: 16px 32px 64px 32px;
+                border: 1px solid #ccc;
+                position: absolute;
+                top: 0;
+                margin: 0;
+                width: 80vw;
+                background: var(--primary-background-color);
+                overflow-y: scroll;
+            }
+
+            .main-layout {
+                display: flex;
+                flex-direction: row;
+            }
+
+            .flex {
+                flex: 1;
+            }
+
+            .form {
+                flex: 2;
+            }
+
+            .buttons-layout {
+                display: flex;
+                flex-direction: row;
+                margin-top: 16px;
+            }
+
+            .buttons-layout paper-button {
+                width: 150px;
+            }
+
+            .save-button {
+                background: var(--accent-color);
+                color: var(--text-primary-color);
+            }
+
+            .cancel-button {
+                color: var(--accent-color);
+            }
+
+            h2 {
+                font-size: 2em;
+                font-weight: 300;
+            }
+
+            paper-button[hidden] {
+                display: none;
+            }
+
+            .error-message {
+                margin-top: 20px;
+                color: #db4437;
+            }
+
+            .close-button {
+                color: var(--accent-color);
+            }
+
+            form::content label {
+                font-weight: bold !important;
+                color: #999 !important;
+            }
+
+            @media (max-width: 600px) {
+                #dialog {
+                    width: 100vw;
+                    min-height: 100vh;
+                    padding: 0 0 60px 0;
+                }
+            }
+        </style>
+
+        <!--
+        <pdf-ajax id="pdfAjax" url="/api/get_report" nop="{{nop}}" token="{{token}}"></pdf-ajax>
+        -->
+
+        <paper-dialog id="dialog" modal>
+            <div class="main-layout">
+                <h2>Entry SK NJOP</h2>
+                <span class="flex"></span>
+                <paper-icon-button icon="close" on-tap="close"
+                                   class="close-button self-start"></paper-icon-button>
+            </div>
+
+            <div class="form">
+                <form is="iron-form" id="form">
+                    <iron-a11y-keys keys="enter" on-keys-pressed="_getReport"></iron-a11y-keys>
+                    <paper-input name="nop" value="{{nop}}" id="nop" label="NOP"
+                                 required autofocus error-message="NOP perlu diisi."></paper-input>
+                </form>
+            </div>
+            <div class="buttons-layout">
+                <paper-button raised on-tap="_getReport" class="save-button">Proses</paper-button>
+                <paper-button on-tap="close" class="cancel-button">Batal</paper-button>
+            </div>
+            <span class="error-message" hidden="[[!errorMessage]]">[[errorMessage]]</span>
+
+            <pdf-browser-viewer id="pdfViewer" file="/reports/SkNjopReport.pdf"></pdf-browser-viewer>
+        </paper-dialog>
+
+
+    </template>
+
+    <script>
+        (function() {
+            'use strict',
+
+            Polymer({
+                is: 'form-entry-sk-njop',
+
+                properties: {
+                    token: {
+                        type: String,
+                        notify: true
+                    },
+                    nop: {
+                        type: String,
+                        value: ''
+                    },
+                    errorMessage: String,
+                    handleResponse: {
+                        type: Object,
+                        notify: true
+                    }
+                },
+
+                close: function() {
+                    this.$.dialog.close();
+                },
+
+                open: function() {
+                    this.$.dialog.open();
+                },
+
+                _getReport: function() {
+                    //this.$.pdfAjax.go();
+
+                    var _this = this;
+                    this.errorMessage = '';
+                    var form = this.$.form;
+
+                    if(form.validate()) {
+                        var newNop = form.serialize();
+
+                        this._ajax({
+                            url: '/api/get_report',
+                            method: 'POST',
+                            body: newNop.nop,
+                            handleAs: 'blob',
+                            verbose: true
+                        }).then(function() {
+                            _this.close();
+                        }).catch(function(err) {
+                            console.log(err);
+                            _this.errorMessage = 'Gagal Membuat SK NJOP';
+                        });
+                    } else {
+                        this.errorMessage = 'Silahkan isi dulu parameter NOP-nya';
+                    }
+                },
+
+
+                _ajax: function(options) {
+                    var _this = this;
+                    var method = options.method || 'GET';
+                    var url = options.url;
+
+                    return new Promise(function(resolve, reject) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.onreadystatechange = function() {
+                            if(xhr.readyState === 4) {
+                                if(xhr.status >= 200 && xhr.status < 300) {
+
+                                    window.open('reports/SkNjopReport.pdf');
+
+                                } else {
+                                    if(xhr.status == 401 || xhr.status == 403) {
+                                        _this.token = '';
+                                    }
+                                    reject({
+                                        success: false,
+                                        status: xhr.status
+                                    });
+                                }
+                            }
+                        };
+
+                        xhr.open(method, url,  true);
+                        xhr.setRequestHeader('x-auth-token', _this.token);
+                        xhr.setRequestHeader('Content-Type', 'application/json');
+                        if((method === 'POST' || method === 'PUT') && options.body) {
+                            xhr.send(JSON.stringify(options.body));
+                        } else {
+                            xhr.send();
+                        }
+                    });
+                }
+            });
+        })();
+    </script>
+</dom-module>

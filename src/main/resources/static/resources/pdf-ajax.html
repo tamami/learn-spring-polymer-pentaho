@@ -1,0 +1,61 @@
+<link rel="import" href="bower_components/iron-localstorage/iron-localstorage.html">
+<link rel="import" href="bower_components/iron-ajax/iron-ajax.html">
+<dom-module id="pdf-ajax">
+    <template>
+        <style>
+            :host {
+                display: none;
+            }
+        </style>
+
+        <iron-ajax auto id="pdfAjax" url="{{url}}" headers="{{headers}}" handle-as="document"
+                params='{"{{nop}}"}' last-response="{{handleResponse}}"></iron-ajax>
+    </template>
+    <script>
+        Polymer({
+            is: 'pdf-ajax',
+
+            properties: {
+                token: {
+                    type: String,
+                    notify: true,
+                    observer: '_tokenUpdated'
+                },
+                url: String,
+                headers: {
+                    type: Object,
+                    computed: '_getHeader(token)'
+                },
+                nop: String,
+                handleResponse: Object
+            },
+
+            listeners: {
+                'on-error': '_error'
+            },
+
+            _tokenUpdated: function() {
+                if(this.token) {
+                    this.go();
+                }
+            },
+
+            go: function() {
+                this.$.pdfAjax.generateRequest();
+            },
+
+            _getHeader: function(token) {
+                return {'x-auth-token': token};
+            },
+
+            _error: function(evt) {
+                var status = evt.details.xhr.status;
+
+                if(status === 401 || status === 403) {
+                    console.log('Token invalid, logging out.');
+                    this.token = '';
+                }
+            }
+        });
+    </script>
+</dom-module>
